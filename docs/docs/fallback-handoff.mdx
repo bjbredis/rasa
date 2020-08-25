@@ -59,7 +59,7 @@ policies:
 You'll also need to add the
 `out_of_scope` intent to your [Domain](./domain.mdx).
 When users send messages with
-the intent `out_of_scope` during the fallback (e.g. by pressing a button),
+the intent `out_of_scope` during the first or second stage of fallback (e.g. by pressing a button),
 Rasa Open Source will know that the users denied the given intent suggestions.
 
 #### Usage
@@ -197,7 +197,7 @@ You can define an `out_of_scope` intent to handle generic out of scope requests,
 the bot respond with a default message like “Sorry, I can't handle that request” by writing a rule with the
 `out_of_scope` intent in it.
 
-Going one step further, if you observe your users asking for certain things, that you'll
+Going one step further, if you observe your users asking for certain things that you'll
 want to turn into a user goal in future, you can handle these as separate intents, to let
 the user know you've understood their message, but don't have a solution quite yet. For example,
 if the user asks “I want to apply for a job at Rasa”, we can then reply with
@@ -211,10 +211,10 @@ for a human. A straightforward way to achieve human handoff is to configure your
 [messaging or voice channel](messaging-and-voice-channels.mdx) to switch
 which host it listens to based on a specific bot or user message.
 
-For example, as the final action of Two-Stage-Fallback, you could ask the user, 
+For example, as the final action of Two-Stage-Fallback, the bot could ask the user, 
 "Would you like to be transferred to a human assistant?" and if they say yes, the
-bot could send a message in a specific format or with a specific payload like
-e.g. "handoff_to_human". When the channel sees this message, it stops listening
+bot sends a message with a specific payload like
+e.g. "handoff_to_human" to the channel. When the channel sees this message, it stops listening
 to the Rasa server, and sends a message to the human channel with the transcript
 of the chat conversation up to that point. 
 
@@ -232,7 +232,7 @@ You'll need to define rules for fallback and out-of-scope situations.
 You'll only need NLU training data for out-of-scope intents. 
 For human handoff, no training data is needed unless you want 
 a seperate rule for handing off to a human vs. Two-Stage-Fallback,
-or if you want to create a `human_handoff` intent.
+or if you want to create a `human_handoff` intent that can be predicted directly.
 
 ### NLU Training Data
 
@@ -255,8 +255,8 @@ nlu:
 ```
 
 As with every intent, you should source the majority of your examples 
-from real conversations. This is especially important for `out_of_scope`
-since false positives for this intent can lead to a bad user experience.
+from real conversations. This is especially important for out-of-scope intents
+since false positives for these intents can lead to a bad user experience.
 
 ### Rules
 #### Rules for Messages with Low Confidence
@@ -297,7 +297,7 @@ rules:
 
 #### Rules for out-of-scope requests 
 
-You can write rules for what should happen for 
+You need to write rules for what should happen for 
 each type of out-of-scope request:
 
 ```yaml
@@ -314,9 +314,9 @@ rules:
 ```
 
 The above example uses single-turn interactions, but 
-you can write any rule you'd like for each out-of-scope scenario.
+you can write a rule with whichever action or actions you'd like for each out-of-scope scenario.
 
-### responses
+### Responses
 
 You'll need to define fallback and out-of-scope responses in our domain. 
 For example, assuming you're using the default fallback actions and the
@@ -333,3 +333,31 @@ responses:
   utter_default:
   - text: 
 ```
+
+## Putting it all together
+
+It's up to you how you want your assistant to act in a fallback or handoff
+situation. You might want to use one or more of the options
+described above Here's a summary of changes you need to make for each:
+
+For single stage NLU fallback:
+  - [ ] Add `FallbackClassifier` to your pipeline in `config.yml`
+  - [ ] Define a rule for the `nlu_fallback` intent
+
+For known out-of-scope intents:
+  - [ ] Add training examples for each out-of-scope intent to your NLU data
+  - [ ] Define rules for each out-of-scope intent
+
+For Two-Stage Fallback:
+  - [ ] Add `FallbackClassifier` to your pipeline in `config.yml`
+  - [ ] Define a rule for the `nlu_fallback` intent that triggers the `two_stage_fallback` action
+  - [ ] Define an out-of-scope intent in your domain
+
+For handling low core confidence:
+  - [ ] Configure the `RulePolicy` for core fallback in `config.yml`
+  - [ ] Optionally customize the fallback action you configure
+
+For handing off to a human:
+  - [ ] Configure your front end to switch hosts
+  - [ ] Write a custom action (which could be your fallback action) to send the handoff payload
+  - [ ] Add a rule for triggering handoff (if not part of fallback)
