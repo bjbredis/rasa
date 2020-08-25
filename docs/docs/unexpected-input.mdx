@@ -44,7 +44,7 @@ If you have generic interjections that should always have the same response no
 matter the context, you can define 
 short rules for the interjecting intents and the responses that should always be returned. 
 When combined with a forgetting mechanism, this won't affect your dialogue history either, so
-you won't need to write any stories showing the interruption.
+you won't need to write any stories or rules showing the interruption.
 
 For example, let's say you see users having conversations like the following one with
 your assistant, where they write a greeting in the middle of a conversation -
@@ -106,10 +106,10 @@ responses:
   utter_greet: Hi there! 
 ```
 
-### Stories with Interjections
+### Stories and Rules for Interjections
 
 You can't revert every kind of interjection. In these cases,
-you need stories with interruptions in them. 
+you need stories or rules with interruptions in them. 
 
 #### Generic Interjections
 
@@ -168,28 +168,27 @@ This means that the dialogue model will pay attention to the value of the slot w
 (read more about other [featurized slots](./domain.mdx#slots), whereas
 unfeaturized slots are only used for storing information. 
 
-You can then write stories whose paths diverge based on the value of `requested_slot`, for example:
+You can then write rules for specific responses to interruptions based on the value of `requested_slot`, for example:
 
 ```
-stories:
-- story: form with email interruption
+rule:
+
+- rule: email interruption
+  condition:
+  - slot_was_set: 
+    - requested_slot: email
+  - active_loop: sales_form
   steps:
-  - intent: contact_sales
-  - action: sales_form
-  - form: sales_form
-  - slot_was_set:
-    - requested_slot: email <!--bot just asked for the user's email-->
   - intent: ask_why_needed
   - action: utter_why_email
   - action: sales_form
 
-- story: form with company interruption
+- rule: company interruption
+  condition:
+  - slot_was_set: 
+    - requested_slot: company
+  - active_loop: sales_form
   steps:
-  - intent: contact_sales
-  - action: sales_form
-  - form: sales_form
-  - slot_was_set:
-    - requested_slot: company <!--bot just asked for the user's company-->
   - intent: ask_why_needed
   - action: utter_why_company
   - action: sales_form
