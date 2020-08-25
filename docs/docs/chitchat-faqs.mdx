@@ -37,8 +37,9 @@ For FAQs and chitchat, you always want the same response (or action) for the sam
 [Rules](rules.mdx) allow you to do exactly that.
 To use rules, the you need to add the [`RulePolicy`](#rule-policy) to your policies in your configuration file:
 
-```yaml
+```rasa-yaml
 policies:
+# other policies
 - name: RulePolicy
 ```
 
@@ -61,7 +62,7 @@ To use retrieval actions, include the `ResponseSelector` in your NLU pipeline in
 The `ResponseSelector` requires a featurizer and intent classifier to work, so
 it should come after these components in your pipeline, for example:
 
-```yaml
+```rasa-yaml
 pipeline:
   - name: WhitespaceTokenizer
   - name: RegexFeaturizer
@@ -82,7 +83,7 @@ By default, the `ResponseSelector` will build a single retrieval model for all r
 If you want to retrieve responses for FAQs and chitchat seperately, you can use multiple `ResponseSelector` components 
 and specify the `retrieval_intent` key, for example:
 
-```yaml
+```rasa-yaml
 pipeline:
 # Other components
 - name: ResponseSelector
@@ -106,7 +107,7 @@ grouped under that retrieval intent will then be handled the same way.
 The retrieval action starts with `respond_` and ends with the retrieval intent's name. 
 For example, rules for responding to FAQs and chitchat would look like this:
 
-```yaml
+```rasa-yaml
 rules:
   - rule: respond to FAQs
     steps:
@@ -126,7 +127,7 @@ NLU training examples for the `ResponseSelector` look the same as
 regular training examples, except that their names must refer to the retrieval
 intent they are grouped under. For example:
 
-```yaml
+```rasa-yaml
 nlu:
   - intent: faq/ask_channels
     examples: |
@@ -159,7 +160,7 @@ retrieval intents. Besides this, they can have all the characteristics of
 normal bot [response](domain.mdx#responses). For the FAQs and chitchat intents
 listed above, our responses could look like:
 
-```yaml
+```rasa-yaml
 responses:
   faq/ask_channels: 
   - text: |

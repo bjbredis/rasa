@@ -11,11 +11,19 @@ need to collect information about which account to transfer from, whom to transf
 amount to transfer. This type of behavior can and should be handled in a rule based way, as it
 is clear how this information should be collected.
 
-Here's a concrete example from Sara, the Rasa assistant. The user wants to <!--TODO-->,
-and for this we need to gather a few pieces of information:
+Here's a short adapted example from Sara, the Rasa assistant. The user wants to subscribe to the newsletter,
+and for this we need to gather one piece of information, namely the user's email. We also want the user to confirm 
+before subscribing them:
 
 ```yaml
-## TODO example convo
+User: I want to subscribe to the newsletter
+    Sara: Sure thing! What's your email address?
+User: user@example.com
+    Sara: Do you want me to send you the Rasa newsletter at user@example.com?
+          [yes]
+          [no]
+User: Yes
+    Sara: We sent a confirmation email to user@example.com.
 ```
 
 This page is a guide on handling business logic. You can use the example
@@ -33,57 +41,94 @@ the bot addresses the user's original request.
 A form's happy path should be defined as a [rule](#rules), which means you'll need to add the [`RulePolicy`](policies.mdx#rulepolicy)
 to your policies in your configuration file:
 
-```yaml
+```rasa-yaml
 policies:
   - name: RulePolicy
 ```
 
 #### Required Slots
 
-For the <!--todo--> use case, we want to collect the following information about the user:
-
-<!--TODO-->
-
-We define a form in our domain file with a slot for each piece
-of required information:
-
-```yaml
-forms:
-## TODO
-```
+For the newsletter subscription example, we want to collect the user's email and confirmation.
 
 We need to add all the slots our form is using to the domain. Slots filled by
 forms are usually `unfeaturized`, since their value doesn't change
-the flow of the conversation.
+the flow of the conversation. 
 
-```yaml
+```rasa-yaml
 slots:
-## TODO
+  email:
+    type: unfeaturized
+  confirmation:
+    type: unfeaturized
+```
+
+We define a form in our domain file with a slot and [slot mappings](forms.mdx#slot-mappings) for each piece
+of required information:
+
+```rasa-yaml
+forms:
+  subscribe_form:
+    email:
+    - type: from_entity
+      entity: email
+    confirmation:
+    - type: from_intent
+      intent: affirm
+      value: true
+    - type: from_intent
+      intent: deny
+      value: false
 ```
 
 #### Filling Slots
 
 [`Slot mappings`](forms.mdx#slot-mappings) define how a slot in a form can be filled.
 By default, a slot will be filled by an entity with the same name.
-You can change this behaviour by specifying slot mappings in your form definition.
 
-For this example, 
-<!--TODO-->
+The `email` slot is filled from the entity of the same name. Entities like emails 
+are best extracted using the [`DucklingEntityExtractor`](entity-extractors.mdx#ducklingentityextractor)
+in your NLU pipeline:
 
-```yaml
-entities:
-## TODO
+```rasa-yaml
+language: en
+pipeline:
+# other components
+- DucklingEntityExtractor:
+  dimensions: ["email"]
 ```
+
+The `confirmation` slot is 
+filled based on the user's intent: If it is `affirm`, it'll be `true`, if it is
+`deny`, it'll be `false`. You can
+define the bot's response for asking for confirmation with buttons, so that the user can
+click "yes" or "no" to trigger `affirm` and `deny` (see next section).
+
+
+## Validating Slots
+
+Often, you'll want to validate the user's input before accepting it,
+for example by checking an email against a database to verify if the user is already subscribed.
+See the docs on [validating form input](forms.mdx#validating-form-input) for more information
+about validation actions. 
+
 
 #### Requesting Slots
 
 To specify how the bot should ask for the required information,
 you define [`responses`](domain.mdx#responses) called `utter_ask_{slotname}` in your domain. 
-For the <!--TODO--> example, our responses could look like this:
+For the newsletter subscription example, the responses look like this:
 
-```yaml
+```rasa-yaml
 responses:
-## TODO
+  utter_ask_email:
+  - text: Sure thing! What's your email address?
+  utter_ask_confirmation:
+  - text: Do you want me to send you the Rasa newsletter at {email}?
+    buttons:
+    - payload: /affirm
+      title: Yes
+    - payload: /deny
+      title: No
 ```
 
 #### Completing the Form
@@ -93,10 +138,33 @@ information it has collected. Depending on the use case, the assistant
 might just respond with a message, or take a more complicated action behind
 the scenes before responding to the user.
 
-In this case, we want the bot to <!--TODO-->, so we define a custom action to do that:
+For the newsletter subscription example, the email would usually be added to a database. 
+In this case, the bot will just utter a response, but the response will vary based 
+on whether the user confirms or not:
+
 
 ```python
-## TODO 
+class ActionSubscribeUser(Action):
+    def name(self):
+        return "action_subscribe_user"
+
+    def run(self, dispatcher, tracker, domain):
+        confirmation = tracker.get_slot("confirmation")
+
+        if confirmation:
+          email = tracker.get_slot("email")
+
+          # Code here for adding user's email to database
+
+          dispatcher.utter_message(
+              template="utter_subscribed"
+          )
+        else:
+          dispatcher.utter_message(
+              template="utter_cancelled"
+          )
+
+        return []
 ```
 
 
@@ -111,22 +179,23 @@ You need two rules for a form's happy path:
 One to activate it, and one to submit it. 
 
 
-```yaml
+```rasa-yaml
 rules:
   - rule: activate form
     steps:
-      - intent: # todo trigger intent
-      - action: _form
+      - intent: subscribe_newsletter
+      - action: subscribe_form
   - rule: submit form
     steps:
-      - form: _form
+      - form: subscribe_form
       - form: null
-      - action: action_ #todo submit
+      - action: action_subscribe_user
 ```
 
 By splitting up the activation and submission of the form, 
 the rules will still apply if the user provides 
-[unexpected input](chitchat-faqs.mdx)
+[unexpected input](unexpected-input.mdx) or interrupts
+the form with [chitchat](chitchat-faqs.mdx).
 
 
 ### NLU Training Data
@@ -137,13 +206,16 @@ examples for how the user will provide the required information.
 #### Form Activation Intent(s)
 
 You need to provide training examples for the
-intent(s) should activate the form.
-For the example use case, we want the intent <!--todo--> to activate the form, 
-so we add the following examples:
+intent(s) that should activate the form.
+For the newsletter subscription use case, we want the intent `subscribe_newsletter` to activate the form:
 
-```yaml
+```rasa-yaml
 nlu:
-## TODO
+- intent: subscribe_newsletter
+  examples: |
+    - Subscribe me to the newsletter please
+    - I want to get news from Rasa
+    - Send me the newsletter
 ```
 
 #### Form Filling Intent(s)
@@ -153,26 +225,53 @@ unless:
  - a slot mapping explicitly asks for or excludes an intent or
  - an intent is involved in a different, competing rule
 
-<!-- TODO instructions depending on whether all slots are filled from entities or not-->
+For the newsletter subscription example, the `confirmation` slot is mapped to two intents,
+so you need to add training data for these intents if you expect users to provide
+free form input and not just use the buttons. 
+
+For the `email` slot, you can add examples to a generic `inform` intent. You don't need
+to annotate any entities, since `DucklingEntityExtractor` is a rule-based extractors
+that isn't trained on your training data:
+
+
+```rasa-yaml
+nlu:
+- intent: affirm
+  examples: |
+    - Yes
+    - yes, please
+    - yup
+- intent: deny
+  examples: |
+    - no don't
+    - no
+    - no I don't want that
+- intent: inform
+  examples: |
+    - example@example.com
+    - my email is bat@man.com
+    - send it to my@email.com
+```
+
 
 ## Putting it all together
 
-Once you've done the following, you can train your bot and try it out!
+Forms require a few more pieces than other conversation patterns,
+but in turn they can greatly simplify the logic of collecting user 
+information. To define a minimal form like the newsletter subscription
+example above, this is a summary of what you'll need to do:
 
-- [ ] Defined your form and added the required slots to the domain
-- [ ] Added `RulePolicy` to your policies in `config.yml`
-- [ ] Added rules for activating and submitting the form
-- [ ] Added examples for the intent to activate your form
-- [ ] Added examples for the intent(s) to fill the required slots
-- [ ] Defined an action or response for the bot to take when the form is completed
-- [ ] Updated your domain with new intents and actions you've defined
+- [ ] Define the form with slot mappings
+- [ ] Add all required slots to the domain
+- [ ] Add `RulePolicy` to your policies in `config.yml`
+- [ ] Add rules for activating and submitting the form
+- [ ] Add examples for the intent to activate your form
+- [ ] Add examples for the intent(s) to fill the required slots
+- [ ] Define an action or response for the bot to take when the form is completed
+- [ ] Update your domain with new intents and actions you've defined
 
-For this example, since a custom action is run when the form is completed, you will need to start
-the custom action in another terminal window before starting `rasa shell`. Make
-sure to uncomment the `action_endpoint` in your `endpoints.yml` to make Rasa
-aware of the action server that will run our form:
-
-```yaml
-action_endpoint:
- url: "http://localhost:5055/webhook"
-```
+To try out your newly defined form, retrain the bot and start `rasa shell`.
+If your final action is a custom action, you'll need to start the action server 
+in a seperate terminal when running `rasa shell`. If you're using `DucklingEntityExtractor` to extract
+entities, you'll need to start Duckling in the background as well
+(see the [instructions for running Duckling](entity-extractors.mdx#ducklingentityextractor)).
