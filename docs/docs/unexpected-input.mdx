@@ -59,8 +59,9 @@ interaction from the dialogue history.
 
 First, make sure the `RulePolicy` is in the policies section of your configuration file:
 
-```yaml
+```rasa-yaml
 policies:
+  # Other policies
   - name: RulePolicy
 ```
 
@@ -90,7 +91,7 @@ This action will return the `utter_greet` response to the user, before removing 
 If you've defined an action that includes `UserUtteranceReverted`, you only
 need to add a single rule for it, since it won't affect the dialogue history:
 
-```yaml
+```rasa-yaml
 rules:
 - rule: greet user
   steps:
@@ -100,7 +101,7 @@ rules:
 
 You'll also need to add any responses your action runs to your domain:
 
-```yaml
+```rasa-yaml
 responses:
   utter_greet: Hi there! 
 ```
@@ -150,7 +151,7 @@ The response should differ for each slot. For example:
 Since we want the `requested_slot` to influence the conversation,
 we need to make the `requested_slot` featurized, and assign it the categorical type:
 
-```yaml
+```rasa-yaml
 slots:
   requested_slot:
     type: categorical
@@ -194,3 +195,16 @@ stories:
   - action: sales_form
 ```
 
+
+## Putting it all together
+
+How you handle unexpected input depends on whether the response should be 
+context sensitive or not.
+
+For generic interjections:
+  - [ ] Define rules for single-turn interactions with actions that return the `UserUtteranceReverted` event
+  - [ ] Use the `ResponseSelector` for [FAQ and chitchat interruptions](chitchat-faqs.mdx)
+
+For contextual interjections:
+  - [ ] Make `requested_slot` a categorical slot (for forms)
+  - [ ] Write rules for context-specific responses to interjections, using slot values where applicable
